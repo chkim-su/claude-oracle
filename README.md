@@ -70,3 +70,15 @@ This activates **FULLAUTO MODE** where Claude uses the Oracle as lead architect.
 ## License
 
 MIT
+
+---
+
+## Meta 🤯
+
+This repo was created using the Oracle itself! The `/fullauto` command guided Claude Code through:
+- Designing the repo structure
+- Creating the install script
+- Writing this README
+- Pushing to GitHub
+
+*The Oracle orchestrating its own birth.* 🔮✨
