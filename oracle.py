@@ -137,34 +137,8 @@ def estimate_tokens(text: str) -> int:
     return len(text) // CHARS_PER_TOKEN
 
 
-# Header for FULLAUTO_CONTEXT.md - ensures Claude reloads instructions after compaction
-FULLAUTO_HEADER = """# ⚠️ FULLAUTO MODE ACTIVE ⚠️
-
-## 🚨 CRITICAL: READ THIS FIRST 🚨
-
-**YOU MUST DO THIS BEFORE ANYTHING ELSE:**
-
-```
-Read the file: ~/.claude/commands/fullauto.md
-```
-
-This is NOT optional. If you skip this step, you will NOT have the instructions needed to operate correctly. You will make mistakes. You will fail the task.
-
-**WHY:** After conversation compaction, you lose the /fullauto command context. The file above contains ALL the instructions for FULLAUTO MODE - how to use the Oracle, the phases, the rules, everything. Without reading it, you're flying blind.
-
-**DO IT NOW:** Use the Read tool on `~/.claude/commands/fullauto.md` BEFORE continuing.
-
----
-
-**IMPORTANT:** Even after completing the task, STAY IN FULLAUTO MODE. If the user sends follow-up requests or questions, continue operating under these instructions. Do NOT treat new user messages as a fresh conversation - you are still in fullauto mode until the user explicitly ends it.
-
----
-
-"""
-
-
 def ensure_fullauto_header():
-    """Check if FULLAUTO_CONTEXT.md exists and prepend header if missing."""
+    """Check if FULLAUTO_CONTEXT.md exists and ensure full /fullauto command is at the bottom."""
     context_file = Path.cwd() / "FULLAUTO_CONTEXT.md"
 
     if not context_file.exists():
@@ -172,14 +146,36 @@ def ensure_fullauto_header():
 
     content = context_file.read_text()
 
-    # Check if header already present (look for the critical marker)
-    if "🚨 CRITICAL: READ THIS FIRST 🚨" in content:
-        return  # Header already exists
+    # Read the /fullauto command file
+    fullauto_command_path = Path.home() / ".claude" / "commands" / "fullauto.md"
+    if not fullauto_command_path.exists():
+        logger.warning(f"Could not find fullauto command at {fullauto_command_path}")
+        return
 
-    # Prepend header to existing content
-    new_content = FULLAUTO_HEADER + content
+    fullauto_content = fullauto_command_path.read_text()
+
+    # Marker to identify where fullauto content starts
+    separator = "\n\n---\n\n"
+    fullauto_marker = "# FULLAUTO MODE - Gemini Oracle Orchestrated Development"
+
+    # If fullauto command already exists in the file, remove it
+    if fullauto_marker in content:
+        # Find where the fullauto content starts
+        marker_index = content.find(fullauto_marker)
+        if marker_index != -1:
+            # Look for the separator before the marker
+            # Remove everything from the separator onwards
+            separator_before_marker = content.rfind(separator[:10], 0, marker_index)  # Look for "---" part
+            if separator_before_marker != -1:
+                content = content[:separator_before_marker].rstrip()
+            else:
+                # If no separator found, just remove from marker onwards
+                content = content[:marker_index].rstrip()
+
+    # Always append the fullauto command to the bottom
+    new_content = content + separator + fullauto_content
     context_file.write_text(new_content)
-    logger.info("Prepended recovery header to FULLAUTO_CONTEXT.md")
+    logger.info("Ensured /fullauto command is at bottom of FULLAUTO_CONTEXT.md")
 
 
 def get_gemini_api_key() -> Optional[str]:

@@ -1,0 +1,16 @@
+# Enforce Unix line endings for all text files
+* text=auto eol=lf
+
+# Explicitly set shell scripts
+*.sh text eol=lf
+oracle text eol=lf
+
+# Python files
+*.py text eol=lf
+
+# Markdown files
+*.md text eol=lf
+
+# Config files
+.gitignore text eol=lf
+.gitattributes text eol=lf
