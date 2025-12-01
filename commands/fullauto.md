@@ -13,8 +13,15 @@ $ARGUMENTS
 
 ## IMPORTANT: ORACLE LIMITATIONS
 
-The Oracle has a **5 exchange context window** per project. This means:
-- It remembers the last 5 query/response pairs
+**The Oracle only knows what you tell it.** Gemini does NOT have access to your codebase, files, or any context unless you explicitly provide it in your query. Previous exchanges do NOT retain file contents - if you attached a file in exchange #1, the Oracle cannot see it in exchange #3.
+
+If you need the Oracle to review code or understand context, you MUST:
+- Use `--files` to attach relevant code in THAT specific request
+- Include key context directly in your query text
+- Don't assume it remembers details from previous exchanges
+
+**The Oracle has a 5 exchange context window** per project:
+- It remembers the last 5 query/response pairs (text only, not file contents)
 - Older exchanges are trimmed (Oracle sees: "⚠️ Older context removed for efficiency")
 - For long tasks, important context may be lost - use FULLAUTO_CONTEXT.md as the source of truth
 
