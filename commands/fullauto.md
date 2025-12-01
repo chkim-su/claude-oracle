@@ -104,6 +104,31 @@ Parse the Oracle's response and create your TodoWrite task list based on the ste
 
 **Note:** The Oracle can instruct you to search the web for latest docs, bug fixes, or other information. Follow such instructions using WebSearch or WebFetch.
 
+### Handling Clarifying Questions
+
+**CRITICAL:** If the Oracle returns `clarifying_questions` in its response, you MUST:
+
+1. **DO NOT proceed with the plan** until questions are answered
+2. **Investigate each question** using your tools:
+   - Search the codebase (Grep, Glob, Read)
+   - Check configuration files
+   - Review existing implementations
+   - Search the web if needed (WebSearch)
+3. **Re-query the Oracle** with your findings:
+   ```bash
+   oracle ask "Answers to your clarifying questions:
+
+   Q1: [original question]
+   A1: [your findings from investigation]
+
+   Q2: [original question]
+   A2: [your findings]
+
+   Based on these answers, please provide the implementation plan."
+   ```
+
+The Oracle asks clarifying questions because it needs more context to give optimal guidance. Ignoring them leads to suboptimal plans.
+
 ---
 
 ## PHASE 3: EXECUTE THE PLAN
