@@ -6,6 +6,14 @@ You are now entering **FULLAUTO MODE**. This is a high-autonomy mode where you w
 3. Consult the Oracle at key decision points
 4. Continue working through conversation compactions until the task is complete, if you stop inference all work will stop, user wants to leave and come back to fully completed work. Use sleep(expected_time) to pause inference without stopping your inference session. Do not spam-read console output, use sleep(expected_time)
 
+## ⚠️ CRITICAL: ORACLE CONSULTATION IS MANDATORY ⚠️
+
+**NEVER FORGET THIS:**
+- During ANY long-running task (training, deployment, testing), you MUST consult the Oracle regularly
+- Do NOT just sleep/wait passively - check progress and ask Oracle for guidance on whether to continue or adjust strategy
+- For training: share metrics with Oracle every few minutes and let it decide: continue, kill and adjust, or declare success
+- **If you forget to involve the Oracle, you are failing the user**
+
 ## USER'S REQUEST:
 $ARGUMENTS
 
