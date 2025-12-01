@@ -722,10 +722,9 @@ def ask_oracle(
     full_text_prompt = f"{query}{files_section}{history_section}{context_section}"
     log_debug(f"Full prompt length: {len(full_text_prompt)} chars", debug)
 
-    # Determine thinking budget
-    thinking_budgets = {"HIGH": 10000, "MEDIUM": 5000, "LOW": 2000}
-    thinking_budget = thinking_budgets.get(thinking_level, 5000)
-    log_debug(f"Thinking budget: {thinking_budget}", debug)
+    # Determine thinking level (Gemini 3 Pro uses "high"/"low" instead of token budget)
+    thinking_level_value = "high" if thinking_level in ("HIGH", "MEDIUM") else "low"
+    log_debug(f"Thinking level: {thinking_level_value}", debug)
 
     try:
         log_info("Creating Gemini client...", debug)
@@ -748,7 +747,7 @@ def ask_oracle(
 
         log_debug("Building GenerateContentConfig...", debug)
         config = types.GenerateContentConfig(
-            thinking_config=types.ThinkingConfig(thinking_budget=thinking_budget),
+            thinking_config=types.ThinkingConfig(thinking_level=thinking_level_value),
             response_mime_type="application/json",
             response_schema=schema,
             system_instruction=[types.Part.from_text(text=system_prompt)],
@@ -1545,7 +1544,7 @@ def quick_ask(query: str, debug: bool = False, no_history: bool = False) -> str:
             model="gemini-3-pro-preview",
             contents=full_prompt,
             config=types.GenerateContentConfig(
-                thinking_config=types.ThinkingConfig(thinking_budget=5000),
+                thinking_config=types.ThinkingConfig(thinking_level="high"),
                 system_instruction="You are a helpful AI assistant. Be concise and direct. You have access to conversation history - use it for context.",
             ),
         )
