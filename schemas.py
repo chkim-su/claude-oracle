@@ -21,11 +21,27 @@ class Risk(BaseModel):
 
 class OracleResponse(BaseModel):
     """Structured response from the Gemini Oracle."""
+    response_type: str = Field(
+        description="Type of response: 'strategic_advice' for Q&A, 'implementation_plan' for execution plans"
+    )
     decision: str = Field(description="The key decision or recommendation")
     reasoning: str = Field(description="Why this is the right approach")
-    steps: List[Step] = Field(description="Ordered steps to execute")
-    risks: List[Risk] = Field(description="Potential risks and mitigations")
-    success_criteria: List[str] = Field(description="How to know when done")
+    answer: Optional[str] = Field(
+        default=None,
+        description="Direct answer to strategic questions (for strategic_advice type)"
+    )
+    steps: Optional[List[Step]] = Field(
+        default=None,
+        description="Ordered steps to execute (for implementation_plan type)"
+    )
+    risks: Optional[List[Risk]] = Field(
+        default=None,
+        description="Potential risks and mitigations (for implementation_plan type)"
+    )
+    success_criteria: Optional[List[str]] = Field(
+        default=None,
+        description="How to know when done (for implementation_plan type)"
+    )
     clarifying_questions: Optional[List[str]] = Field(
         default=None,
         description="Questions to ask if more info needed"
@@ -54,8 +70,13 @@ class ValidationResponse(BaseModel):
 ORACLE_RESPONSE_SCHEMA = {
     "type": "object",
     "properties": {
+        "response_type": {
+            "type": "string",
+            "enum": ["strategic_advice", "implementation_plan"]
+        },
         "decision": {"type": "string"},
         "reasoning": {"type": "string"},
+        "answer": {"type": "string"},
         "steps": {
             "type": "array",
             "items": {
@@ -90,7 +111,7 @@ ORACLE_RESPONSE_SCHEMA = {
             "items": {"type": "string"}
         }
     },
-    "required": ["decision", "reasoning", "steps", "risks", "success_criteria"]
+    "required": ["response_type", "decision", "reasoning"]
 }
 
 VALIDATION_RESPONSE_SCHEMA = {
