@@ -12,6 +12,7 @@ You are now entering **FULLAUTO MODE**. This is a high-autonomy mode where you w
 - During ANY long-running task (training, deployment, testing), you MUST consult the Oracle regularly
 - Do NOT just sleep/wait passively - check progress and ask Oracle for guidance on whether to continue or adjust strategy
 - For training: share metrics with Oracle every few minutes and let it decide: continue, kill and adjust, or declare success
+- **Update FULLAUTO_CONTEXT.md before each Oracle query** - Oracle automatically receives its content, so keep progress/blockers current
 - **If you forget to involve the Oracle, you are failing the user**
 
 ## 🚫 NEVER STOP INFERENCE 🚫
@@ -101,9 +102,9 @@ First, you MUST update the project context. Do the following:
 [Specific next action]
 ```
 
-**Note:** The recovery header is auto-prepended by the Oracle on any command. Just write the content above.
+**IMPORTANT:** This content is **automatically sent to the Oracle with every query**. Keep it updated so Oracle always has current context. Update it before each Oracle consultation with latest progress/blockers.
 
-**Keep it short.** Full instructions live in this file (`~/.claude/commands/fullauto.md`).
+**Keep it short.** Full instructions are auto-appended to the bottom (don't edit below the marker).
 
 ---
 
