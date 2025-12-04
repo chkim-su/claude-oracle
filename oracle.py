@@ -45,6 +45,15 @@ try:
 except ImportError:
     requests = None  # Will error if Vast.ai auto-provision is needed
 
+# OAuth imports for Google account login
+try:
+    from google.auth.transport.requests import Request as AuthRequest
+    from google.oauth2.credentials import Credentials
+    from google_auth_oauthlib.flow import InstalledAppFlow
+    OAUTH_AVAILABLE = True
+except ImportError:
+    OAUTH_AVAILABLE = False
+
 # Setup logging
 LOG_DIR = Path.home() / ".oracle" / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -87,6 +96,15 @@ VASTAI_AUTO_PROVISION = {
     'startup_timeout': 300,  # 5 minutes max to wait for instance
     'ssh_timeout': 60,  # 1 minute max to wait for SSH
 }
+
+# OAuth configuration for Google account login
+OAUTH_DIR = Path.home() / ".oracle" / "oauth"
+OAUTH_DIR.mkdir(parents=True, exist_ok=True)
+OAUTH_TOKEN_FILE = OAUTH_DIR / "token.json"
+OAUTH_CLIENT_SECRET_FILE = OAUTH_DIR / "client_secret.json"
+OAUTH_SCOPES = [
+    'https://www.googleapis.com/auth/cloud-platform',
+]
 
 # Configure logging
 logging.basicConfig(
@@ -198,6 +216,157 @@ If you are Claude operating in fullauto mode, you MUST read and follow the instr
 def get_gemini_api_key() -> Optional[str]:
     """Get Gemini API key from environment, checking multiple possible names."""
     return os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+
+
+def get_oauth_credentials(debug: bool = False) -> Optional['Credentials']:
+    """
+    Get OAuth credentials for Google account login.
+
+    Returns cached credentials if valid, refreshes if expired, or None if not logged in.
+    Use `oracle login` to initiate the OAuth flow.
+    """
+    if not OAUTH_AVAILABLE:
+        log_debug("OAuth libraries not available", debug)
+        return None
+
+    if not OAUTH_TOKEN_FILE.exists():
+        log_debug("No OAuth token file found", debug)
+        return None
+
+    try:
+        creds = Credentials.from_authorized_user_file(str(OAUTH_TOKEN_FILE), OAUTH_SCOPES)
+
+        if creds and creds.valid:
+            log_debug("Using valid cached OAuth credentials", debug)
+            return creds
+
+        if creds and creds.expired and creds.refresh_token:
+            log_debug("Refreshing expired OAuth credentials", debug)
+            creds.refresh(AuthRequest())
+            # Save refreshed token
+            with open(OAUTH_TOKEN_FILE, 'w') as token:
+                token.write(creds.to_json())
+            return creds
+
+        log_debug("OAuth credentials invalid and cannot be refreshed", debug)
+        return None
+
+    except Exception as e:
+        log_debug(f"Error loading OAuth credentials: {e}", debug)
+        return None
+
+
+def oauth_login(debug: bool = False) -> bool:
+    """
+    Initiate OAuth login flow to authenticate with Google account.
+
+    Requires client_secret.json in ~/.oracle/oauth/ directory.
+    Opens browser for user to authorize access.
+
+    Returns True on success, False on failure.
+    """
+    if not OAUTH_AVAILABLE:
+        print("❌ OAuth libraries not installed. Run:")
+        print("   pip install google-auth-oauthlib google-auth-httplib2")
+        return False
+
+    if not OAUTH_CLIENT_SECRET_FILE.exists():
+        print("❌ OAuth client secret not found.")
+        print()
+        print("To set up Google OAuth login:")
+        print("1. Go to https://console.cloud.google.com/apis/credentials")
+        print("2. Create OAuth 2.0 Client ID (Desktop application)")
+        print("3. Download the JSON and save as:")
+        print(f"   {OAUTH_CLIENT_SECRET_FILE}")
+        print()
+        print("Or continue using API key with GEMINI_API_KEY environment variable.")
+        return False
+
+    try:
+        print("🔐 Starting Google OAuth login...")
+        print("   A browser window will open for authorization.")
+        print()
+
+        flow = InstalledAppFlow.from_client_secrets_file(
+            str(OAUTH_CLIENT_SECRET_FILE),
+            OAUTH_SCOPES
+        )
+
+        # Run local server for OAuth callback
+        creds = flow.run_local_server(port=0)
+
+        # Save credentials for future use
+        with open(OAUTH_TOKEN_FILE, 'w') as token:
+            token.write(creds.to_json())
+
+        print("✅ Successfully logged in!")
+        print(f"   Token saved to: {OAUTH_TOKEN_FILE}")
+        print()
+        print("You can now use Oracle with your Google account subscription.")
+        return True
+
+    except Exception as e:
+        print(f"❌ OAuth login failed: {e}")
+        log_error(f"OAuth login failed: {e}")
+        return False
+
+
+def oauth_logout() -> bool:
+    """Remove saved OAuth credentials."""
+    if OAUTH_TOKEN_FILE.exists():
+        OAUTH_TOKEN_FILE.unlink()
+        print("✅ Logged out. OAuth credentials removed.")
+        return True
+    else:
+        print("ℹ️  No OAuth credentials found.")
+        return False
+
+
+def get_genai_client(api_key: Optional[str] = None, debug: bool = False):
+    """
+    Create a Gemini client using available authentication methods.
+
+    Priority:
+    1. Vertex AI Express (VERTEX_API_KEY) - works with Gemini 3 Pro
+    2. OAuth credentials (if logged in via `oracle login`)
+    3. Regular API key (GEMINI_API_KEY)
+
+    Returns (client, auth_method) tuple or (None, error_message).
+    """
+    from google import genai
+
+    # Try Vertex AI Express first (works with Gemini 3 Pro)
+    vertex_key = os.environ.get("VERTEX_API_KEY")
+    if vertex_key:
+        log_info("Using Vertex AI Express", debug)
+        try:
+            client = genai.Client(vertexai=True, api_key=vertex_key)
+            return (client, "vertex_express")
+        except Exception as e:
+            log_debug(f"Vertex AI Express client creation failed: {e}", debug)
+            # Fall through to other methods
+
+    # Try OAuth second
+    oauth_creds = get_oauth_credentials(debug)
+    if oauth_creds:
+        log_info("Using OAuth credentials (Google account)", debug)
+        try:
+            client = genai.Client(credentials=oauth_creds)
+            return (client, "oauth")
+        except Exception as e:
+            log_debug(f"OAuth client creation failed: {e}", debug)
+            # Fall through to API key
+
+    # Fall back to regular API key
+    if not api_key:
+        api_key = get_gemini_api_key()
+
+    if api_key:
+        log_info("Using API key", debug)
+        client = genai.Client(api_key=api_key)
+        return (client, "api_key")
+
+    return (None, "No authentication available. Set VERTEX_API_KEY, run 'oracle login', or set GEMINI_API_KEY.")
 
 
 def read_image_as_base64(image_path: str, debug: bool = False) -> Tuple[Optional[bytes], Optional[str], Optional[str]]:
@@ -760,7 +929,10 @@ def ask_oracle(
 
     try:
         log_info("Creating Gemini client...", debug)
-        client = genai.Client(api_key=api_key)
+        client, auth_method = get_genai_client(api_key, debug)
+        if client is None:
+            return {"error": auth_method}
+        log_info(f"Authenticated via {auth_method}", debug)
 
         # Build content parts
         parts = []
@@ -1460,7 +1632,10 @@ def imagine(
 
     try:
         log_info("Creating Gemini client...", debug)
-        client = genai.Client(api_key=api_key)
+        client, auth_method = get_genai_client(api_key, debug)
+        if client is None:
+            return (None, auth_method)
+        log_info(f"Authenticated via {auth_method}", debug)
 
         # Build content parts
         parts = []
@@ -1569,7 +1744,10 @@ def quick_ask(query: str, debug: bool = False, no_history: bool = False) -> str:
 
     try:
         log_info("Creating Gemini client...", debug)
-        client = genai.Client(api_key=api_key)
+        client, auth_method = get_genai_client(api_key, debug)
+        if client is None:
+            return f"ERROR: {auth_method}"
+        log_info(f"Authenticated via {auth_method}", debug)
 
         log_info("Calling Gemini API...", debug)
         response = client.models.generate_content(
@@ -1733,6 +1911,12 @@ Generated images: ~/.oracle/images/
     # context command - view FULLAUTO_CONTEXT.md
     context_parser = subparsers.add_parser("context", help="Show FULLAUTO_CONTEXT.md")
 
+    # login command - OAuth login with Google account
+    login_parser = subparsers.add_parser("login", help="Login with Google account (uses your subscription)")
+
+    # logout command - remove OAuth credentials
+    logout_parser = subparsers.add_parser("logout", help="Logout and remove saved credentials")
+
     args = parser.parse_args()
 
     # Auto-prepend recovery header to FULLAUTO_CONTEXT.md if it exists without one
@@ -1826,6 +2010,8 @@ Generated images: ~/.oracle/images/
         history = load_history(project_id)
 
         print("=== Gemini Oracle Status ===")
+        vertex_key = os.environ.get("VERTEX_API_KEY")
+        print(f"Vertex AI Key: {'SET' if vertex_key else 'NOT SET'}")
         print(f"API Key: {'SET' if api_key else 'NOT SET'}")
         print(f"Project ID: {project_id}")
         print(f"Context File: {'FOUND' if context else 'NOT FOUND'}")
@@ -1841,10 +2027,19 @@ Generated images: ~/.oracle/images/
             print(f"Context Size: {len(context)} chars, {len(lines)} lines")
             print(f"First line: {lines[0][:80]}...")
 
+        # Check OAuth status
+        oauth_creds = get_oauth_credentials(debug=False)
+        if oauth_creds:
+            print(f"OAuth Status: LOGGED IN (Google account)")
+        elif OAUTH_TOKEN_FILE.exists():
+            print(f"OAuth Status: TOKEN EXPIRED (run 'oracle login')")
+        else:
+            print(f"OAuth Status: NOT LOGGED IN")
+
         # Check if google-genai is properly configured
         try:
-            client = genai.Client(api_key=api_key) if api_key else None
-            print(f"Gemini Client: {'OK' if client else 'NOT CONFIGURED'}")
+            client, auth_method = get_genai_client(api_key, debug=False)
+            print(f"Gemini Client: {'OK via ' + auth_method if client else 'NOT CONFIGURED'}")
         except Exception as e:
             print(f"Gemini Client: ERROR - {e}")
 
@@ -1863,6 +2058,12 @@ Generated images: ~/.oracle/images/
             print(context_file.read_text())
         else:
             print(f"No FULLAUTO_CONTEXT.md found in {Path.cwd()}")
+
+    elif args.command == "login":
+        oauth_login(debug=False)
+
+    elif args.command == "logout":
+        oauth_logout()
 
     else:
         parser.print_help()

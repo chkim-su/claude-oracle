@@ -1,5 +1,7 @@
 # Claude Oracle
 
+[![Stars](https://img.shields.io/github/stars/n1ira/claude-oracle?style=social)](https://github.com/n1ira/claude-oracle)
+
 A CLI that makes Google's Gemini 3 Pro the "lead architect" for Claude Code. Think of it as giving your AI coding assistant its own AI assistant for strategic decisions.
 
 ## Why?
@@ -16,10 +18,45 @@ cd claude-oracle
 ./install.sh
 ```
 
-Then set your Gemini API key ([get one here](https://makersuite.google.com/app/apikey)):
+### Option 1: Vertex AI Express (Recommended for Gemini 3 Pro)
+
+Vertex AI Express provides access to Gemini 3 Pro without restrictions:
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com)
+2. Enable **Vertex AI API**
+3. Create a service account and generate an API key
+4. Set the environment variable:
+
+```bash
+export VERTEX_API_KEY="your-vertex-key"
+```
+
+### Option 2: Regular Gemini API Key
+
+For Gemini 2.5 and earlier models ([get key here](https://makersuite.google.com/app/apikey)):
 
 ```bash
 export GEMINI_API_KEY="your-key"
+```
+
+### Option 3: Google Account OAuth
+
+If you have a Google AI Ultra subscription or want to use your Google account instead of an API key:
+
+1. Go to [Google Cloud Console Credentials](https://console.cloud.google.com/apis/credentials)
+2. Create OAuth 2.0 Client ID → **Desktop application**
+3. Download the JSON and save as `~/.oracle/oauth/client_secret.json`
+4. Run:
+
+```bash
+oracle login
+```
+
+This opens a browser for authentication. Once logged in, Oracle uses your Google account's access (including Ultra subscription benefits) automatically.
+
+```bash
+oracle logout  # Remove saved credentials
+oracle info    # Check authentication status
 ```
 
 ## Commands
@@ -49,6 +86,11 @@ oracle history --clear
 
 # View FULLAUTO_CONTEXT.md (recovery header auto-prepended)
 oracle context
+
+# Google account login (for subscription users)
+oracle login
+oracle logout
+oracle info  # Check auth status
 ```
 
 ## Claude Code Integration

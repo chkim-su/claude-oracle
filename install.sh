@@ -75,7 +75,7 @@ python3 -m venv "$INSTALL_DIR/venv"
 # Install dependencies
 echo "📦 Installing dependencies..."
 "$INSTALL_DIR/venv/bin/pip" install -q --upgrade pip
-"$INSTALL_DIR/venv/bin/pip" install -q google-genai requests Pillow
+"$INSTALL_DIR/venv/bin/pip" install -q google-genai requests Pillow google-auth-oauthlib google-auth-httplib2
 
 # Determine shell config file
 if [ -n "$ZSH_VERSION" ] || [ -f "$HOME/.zshrc" ]; then
@@ -112,10 +112,15 @@ echo ""
 
 # Check if API key is set
 if [ -z "$GEMINI_API_KEY" ]; then
-    echo "⚠️  Set your API key:"
-    echo '   echo '\''export GEMINI_API_KEY="your-key-here"'\'' >> '"$SHELL_RC"
+    echo "⚠️  Set your API key OR login with Google account:"
     echo ""
+    echo "   Option 1 - API Key:"
+    echo '   echo '\''export GEMINI_API_KEY="your-key-here"'\'' >> '"$SHELL_RC"
     echo "   Get a free API key at: https://aistudio.google.com/apikey"
+    echo ""
+    echo "   Option 2 - Google Account (for subscription users):"
+    echo "   oracle login"
+    echo "   (See README for OAuth setup)"
     echo ""
 fi
 
